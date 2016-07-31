@@ -14,17 +14,18 @@ This brings us back to Docker. The security of Docker is something that is very 
 
 Let's start with Falco. Falco is container aware which means we can create a rule really simply.
 ```yaml
-- rule: container_syscalls
+- rule: container_syscall
   desc: Capture syscalls for any docker container
-  priority: informational
+  priority: WARNING
   condition: container.id != host and syscall.type exists
-  output: %container.id:%syscall.type
+  output: "%container.id:%syscall.type"
 ```
 This rule simply states, if you see a container making a syscall log the container's id and the syscall that is being made. With that rule in place, and Falco configured to log JSON, we can start the Falco daemon and running a Nginx Docker container gives us the following output:
 
 ```json
-{"put":"stuff here"}
-{"put":"stuff here"}
+{"output":"15:07:59.736531417: Warning 7a68a113b2a4:clone","priority":"Warning","rule":"container_syscall","time":"2016-07-01T19:07:59.736531417Z"}
+{"output":"15:07:59.736536327: Warning 7a68a113b2a4:set_robust_list","priority":"Warning","rule":"container_syscall","time":"2016-07-01T19:07:59.736536327Z"}
+{"output":"15:07:59.736536539: Warning 7a68a113b2a4:set_robust_list","priority":"Warning","rule":"container_syscall","time":"2016-07-01T19:07:59.736536539Z"}
 ```
 
 That's awesome! We now have a log of all the syscalls being made by that Docker container. So what do we do with this?
@@ -32,22 +33,21 @@ That's awesome! We now have a log of all the syscalls being made by that Docker 
 To help with this task I've released [falco2seccomp](https://github.com/nevins-b/falco2seccomp). This is a pretty simple Go project written to parse the output from Falco and generate a ready to go seccomp profile. Here's example usage:
 
 ```shell
-falco2seccomp -log events.log -container-id <something>
+falco2seccomp -log events.log -container-id 7a68a113b2a4
 {
     "defaultAction": "SCMP_ACT_ERRNO",
     "architectures": [
         "SCMP_ARCH_X86_64",
-        "SCMP_ARCH_X86",
-        "SCMP_ARCH_X32"
+        "SCMP_ARCH_X86"
     ],
     "syscalls": [
         {
-            "name": "accept",
+            "name": "set_robust_list",
             "action": "SCMP_ACT_ALLOW",
             "args": []
         },
         {
-            "name": "accept4",
+            "name": "gettid",
             "action": "SCMP_ACT_ALLOW",
             "args": []
         },
@@ -56,6 +56,6 @@ falco2seccomp -log events.log -container-id <something>
 }
 ```
 
-This is a ready to use out of the box seccomp profile for our nginx container, limited to just the syscalls we actually saw the container using. Instead of blacklisting 40 syscalls, we're only allowing 44. Again, awesome.
+This is a ready to use out of the box seccomp profile for our nginx container, limited to just the syscalls we actually saw the container using. Instead of blacklisting 40 syscalls, we're only allowing 41. Again, awesome.
 
 So how can you use this in the real world? One thought would be to integrate it into a CI/CD pipeline. If your builds are being done in a Docker container your tests should be exercising your code enough to generate the full list of syscalls required. boom.

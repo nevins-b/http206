@@ -67,7 +67,31 @@ pagination_dir: page
 ## Themes: https://hexo.io/themes/
 theme: jane
 disqus_shortname: http206
+
+feed:
+  type: atom
+  path: atom.xml
+  limit: 20
+  hub:
 # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
   type:
+
+sitemap:
+    path: sitemap.xml
+
+html_minifier:
+  enable: false
+  exclude:
+css_minifier:
+  enable: false
+  exclude:
+    - '*.min.css'
+js_minifier:
+  enable: true
+  mangle: true
+  output:
+  compress:
+  exclude:
+    - '*.min.js'
